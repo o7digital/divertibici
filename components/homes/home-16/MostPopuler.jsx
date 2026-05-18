@@ -4,36 +4,6 @@ import { useContextElement } from "@/context/Context";
 import React, { useEffect, useState } from "react";
 const filterCategories = ["All", "Bestsellers", "Most Viewed"];
 
-const WOO_PRODUCTS_URL =
-  "https://tienda.divertibici.com.mx/wp-json/wc/store/v1/products?category=17&per_page=12";
-
-function formatPrice(product) {
-  const prices = product.prices || {};
-  const minorUnit = Number(prices.currency_minor_unit ?? 2);
-  const rawPrice = Number(prices.price || 0) / Math.pow(10, minorUnit);
-
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: prices.currency_code || "MXN",
-    maximumFractionDigits: 2,
-  }).format(rawPrice);
-}
-
-function mapWooProduct(product) {
-  const image = product.images?.[0];
-
-  return {
-    id: product.id,
-    title: product.name,
-    category: product.categories?.[0]?.name || "Bikes",
-    price: formatPrice(product),
-    imgSrc: image?.src || "/assets/images/products/product-38-1.jpg",
-    permalink: product.permalink || `https://tienda.divertibici.com.mx/producto/${product.slug}/`,
-    ratings: Math.max(1, Math.round(Number(product.average_rating || 5))),
-    filterCategory: product.on_sale ? "Bestsellers" : "Most Viewed",
-  };
-}
-
 export default function MostPopuler() {
   const { toggleWishlist, isAddedtoWishlist } = useContextElement();
   const { setQuickViewItem } = useContextElement();
@@ -46,7 +16,7 @@ export default function MostPopuler() {
   useEffect(() => {
     let ignore = false;
 
-    fetch(WOO_PRODUCTS_URL)
+    fetch("/api/products")
       .then((response) => {
         if (!response.ok) {
           throw new Error(`WooCommerce returned ${response.status}`);
@@ -55,9 +25,9 @@ export default function MostPopuler() {
       })
       .then((items) => {
         if (!ignore) {
-          const mappedProducts = Array.isArray(items) ? items.map(mapWooProduct) : [];
-          setProducts(mappedProducts);
-          setFiltered(mappedProducts);
+          const backendProducts = Array.isArray(items.products) ? items.products : [];
+          setProducts(backendProducts);
+          setFiltered(backendProducts);
         }
       })
       .catch(() => {
