@@ -1,27 +1,57 @@
 "use client";
 import Star from "@/components/common/Star";
 import { useContextElement } from "@/context/Context";
-import { products35 } from "@/data/products/bikes";
-import Link from "next/link";
 import React, { useEffect, useState } from "react";
 const filterCategories = ["All", "Bestsellers", "Most Viewed"];
-import Image from "next/image";
+
 export default function MostPopuler() {
   const { toggleWishlist, isAddedtoWishlist } = useContextElement();
   const { setQuickViewItem } = useContextElement();
   const { addProductToCart, isAddedToCartProducts } = useContextElement();
   const [currentCategory, setCurrentCategory] = useState(filterCategories[0]);
 
-  const [filtered, setFiltered] = useState(products35);
+  const [products, setProducts] = useState([]);
+  const [filtered, setFiltered] = useState([]);
+
   useEffect(() => {
-    if (currentCategory == "All") {
-      setFiltered(products35);
+    let ignore = false;
+
+    fetch("/api/products")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`WooCommerce returned ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((items) => {
+        if (!ignore) {
+          const backendProducts = Array.isArray(items.products) ? items.products : [];
+          setProducts(backendProducts);
+          setFiltered(backendProducts);
+        }
+      })
+      .catch(() => {
+        if (!ignore) {
+          setProducts([]);
+          setFiltered([]);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (currentCategory === "All") {
+      setFiltered(products);
     } else {
       setFiltered([
-        ...products35.filter((elm) => elm.filterCategory == currentCategory),
+        ...products.filter((elm) => elm.filterCategory === currentCategory),
       ]);
     }
-  }, [currentCategory]);
+  }, [currentCategory, products]);
+
   return (
     <section className="products-grid container">
       <h2 className="section-title text-uppercase fs-40 fw-bold text-center mb-2">
@@ -61,16 +91,16 @@ export default function MostPopuler() {
               <div key={i} className="col-6 col-md-4 col-lg-3">
                 <div className="product-card mb-3 mb-md-4 mb-xxl-5">
                   <div className="pc__img-wrapper border-1 pt-100per">
-                    <Link href={`/product1_simple/${elm.id}`}>
-                      <Image
+                    <a href={elm.permalink}>
+                      <img
                         loading="lazy"
                         src={elm.imgSrc}
                         width="330"
                         height="330"
-                        alt="Cropped Faux leather Jacket"
+                        alt={elm.title}
                         className="pc__img"
                       />
-                    </Link>
+                    </a>
                     <div className="anim_appear-fade position-absolute w-100 h-100 left-0 top-0 d-flex align-items-center justify-content-center bg-white-overlay">
                       <button
                         className="btn btn-square theme-bg-color text-white border-0 text-uppercase me-1 me-md-2 js-add-cart js-open-aside"
@@ -143,13 +173,11 @@ export default function MostPopuler() {
                       </div>
                     </div>
                     <h6 className="pc__title fw-bold text-uppercase fs-18">
-                      <Link href={`/product1_simple/${elm.id}`}>
-                        {elm.title}
-                      </Link>
+                      <a href={elm.permalink}>{elm.title}</a>
                     </h6>
                     <div className="product-card__price d-flex">
                       <span className="money price theme-color fw-bold fs-18">
-                        ${elm.price}
+                        {elm.price}
                       </span>
                     </div>
                   </div>
