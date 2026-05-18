@@ -1,27 +1,87 @@
 "use client";
 import Star from "@/components/common/Star";
 import { useContextElement } from "@/context/Context";
-import { products35 } from "@/data/products/bikes";
-import Link from "next/link";
 import React, { useEffect, useState } from "react";
 const filterCategories = ["All", "Bestsellers", "Most Viewed"];
-import Image from "next/image";
+
+const WOO_PRODUCTS_URL =
+  "https://tienda.divertibici.com.mx/wp-json/wc/store/v1/products?category=17&per_page=12";
+
+function formatPrice(product) {
+  const prices = product.prices || {};
+  const minorUnit = Number(prices.currency_minor_unit ?? 2);
+  const rawPrice = Number(prices.price || 0) / Math.pow(10, minorUnit);
+
+  return new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: prices.currency_code || "MXN",
+    maximumFractionDigits: 2,
+  }).format(rawPrice);
+}
+
+function mapWooProduct(product) {
+  const image = product.images?.[0];
+
+  return {
+    id: product.id,
+    title: product.name,
+    category: product.categories?.[0]?.name || "Bikes",
+    price: formatPrice(product),
+    imgSrc: image?.src || "/assets/images/products/product-38-1.jpg",
+    permalink: product.permalink || `https://tienda.divertibici.com.mx/producto/${product.slug}/`,
+    ratings: Math.max(1, Math.round(Number(product.average_rating || 5))),
+    filterCategory: product.on_sale ? "Bestsellers" : "Most Viewed",
+  };
+}
+
 export default function MostPopuler() {
   const { toggleWishlist, isAddedtoWishlist } = useContextElement();
   const { setQuickViewItem } = useContextElement();
   const { addProductToCart, isAddedToCartProducts } = useContextElement();
   const [currentCategory, setCurrentCategory] = useState(filterCategories[0]);
 
-  const [filtered, setFiltered] = useState(products35);
+  const [products, setProducts] = useState([]);
+  const [filtered, setFiltered] = useState([]);
+
   useEffect(() => {
-    if (currentCategory == "All") {
-      setFiltered(products35);
+    let ignore = false;
+
+    fetch(WOO_PRODUCTS_URL)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`WooCommerce returned ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((items) => {
+        if (!ignore) {
+          const mappedProducts = Array.isArray(items) ? items.map(mapWooProduct) : [];
+          setProducts(mappedProducts);
+          setFiltered(mappedProducts);
+        }
+      })
+      .catch(() => {
+        if (!ignore) {
+          setProducts([]);
+          setFiltered([]);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (currentCategory === "All") {
+      setFiltered(products);
     } else {
       setFiltered([
-        ...products35.filter((elm) => elm.filterCategory == currentCategory),
+        ...products.filter((elm) => elm.filterCategory === currentCategory),
       ]);
     }
-  }, [currentCategory]);
+  }, [currentCategory, products]);
+
   return (
     <section className="products-grid container">
       <h2 className="section-title text-uppercase fs-40 fw-bold text-center mb-2">
@@ -61,16 +121,16 @@ export default function MostPopuler() {
               <div key={i} className="col-6 col-md-4 col-lg-3">
                 <div className="product-card mb-3 mb-md-4 mb-xxl-5">
                   <div className="pc__img-wrapper border-1 pt-100per">
-                    <Link href={`/product1_simple/${elm.id}`}>
-                      <Image
+                    <a href={elm.permalink}>
+                      <img
                         loading="lazy"
                         src={elm.imgSrc}
                         width="330"
                         height="330"
-                        alt="Cropped Faux leather Jacket"
+                        alt={elm.title}
                         className="pc__img"
                       />
-                    </Link>
+                    </a>
                     <div className="anim_appear-fade position-absolute w-100 h-100 left-0 top-0 d-flex align-items-center justify-content-center bg-white-overlay">
                       <button
                         className="btn btn-square theme-bg-color text-white border-0 text-uppercase me-1 me-md-2 js-add-cart js-open-aside"
@@ -143,13 +203,11 @@ export default function MostPopuler() {
                       </div>
                     </div>
                     <h6 className="pc__title fw-bold text-uppercase fs-18">
-                      <Link href={`/product1_simple/${elm.id}`}>
-                        {elm.title}
-                      </Link>
+                      <a href={elm.permalink}>{elm.title}</a>
                     </h6>
                     <div className="product-card__price d-flex">
                       <span className="money price theme-color fw-bold fs-18">
-                        ${elm.price}
+                        {elm.price}
                       </span>
                     </div>
                   </div>
